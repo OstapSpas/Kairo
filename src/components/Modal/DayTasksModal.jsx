@@ -8,6 +8,7 @@ import "./DayTasksModal.css";
 
 export default function DayTasksModal({
     selectedDay,
+    selectedMonth,
     tasks,
     onClose,
     onAdd,
@@ -43,7 +44,9 @@ export default function DayTasksModal({
         <div className="modal-overlay">
             <div className="modal-content">
                 <div className="modal-date">
-                    <h3>{selectedDay} May</h3>
+                    <h3>
+                    {selectedDay} {selectedMonth}
+                    </h3>
 
                     <div className="modal-close-button">
                         <button type="button" onClick={onClose}>

@@ -1,13 +1,15 @@
+/* Month Header */
+
 .month-header {
   width: 100%;
-  /* padding: 28px 24px 0; */
 }
 
 .month-header__content {
   width: 100%;
-  display: flex;
+
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
   align-items: center;
-  justify-content: space-between;
 }
 
 .month-header__button {
@@ -30,9 +32,12 @@
 }
 
 .month-header__title {
+  text-align: center;
+
   font-size: 24px;
   font-weight: 400;
   color: var(--primary-color);
+
   margin: 0;
   line-height: 1;
 }

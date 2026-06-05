@@ -1,152 +1,197 @@
 import { useState, useEffect } from "react";
 
+import BottomNav from "../../components/Navbar/BottomNav";
 import MonthHeader from "../../components/Navbar/MonthHeader";
 import CalendarGrid from "../../components/CalendarGrid/CalendarGrid";
 import DayTasksModal from "../../components/Modal/DayTasksModal";
 
-function GetDateArray() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
+const DAYS_PER_PAGE = 18;
 
-    const daysCount = new Date(year, month + 1, 0).getDate();
+function createDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-    const days = Array.from({ length: daysCount }, (_, index) => index + 1);
+  return `${year}-${month}-${day}`;
+}
 
-    return days;
+function getVisibleDays(startDate) {
+  return Array.from({ length: DAYS_PER_PAGE }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+
+    return {
+      day: date.getDate(),
+      month: date.getMonth(),
+      year: date.getFullYear(),
+      monthName: date.toLocaleString("en-US", { month: "long" }),
+      dateKey: createDateKey(date),
+    };
+  });
+}
+
+function getMonthTitle(visibleDays) {
+  const firstDay = visibleDays[0];
+  const lastDay = visibleDays[visibleDays.length - 1];
+
+  if (firstDay.month === lastDay.month && firstDay.year === lastDay.year) {
+    return `${firstDay.monthName} ${firstDay.year}`;
+  }
+
+  return `${firstDay.monthName} / ${lastDay.monthName} ${lastDay.year}`;
 }
 
 export default function GoalTrackerPage() {
-    const [selectedDay, setSelectedDay] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
-    const [tasksByDay, setTasksByDay] = useState({
-        15: [
-            { id: 1, text: "Go to Gym" },
-            { id: 2, text: "LeetCode" },
-        ],
-        16: [
-            { id: 3, text: "Read book" },
-        ],
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [tasksByDate, setTasksByDate] = useState({
+    "2026-06-15": [
+      { id: 1, text: "Go to Gym" },
+      { id: 2, text: "LeetCode" },
+    ],
+  });
+
+  const visibleDays = getVisibleDays(startDate);
+  const monthTitle = getMonthTitle(visibleDays);
+
+  const tasksForSelectedDay = selectedDate
+    ? tasksByDate[selectedDate.dateKey] || []
+    : [];
+
+  function handleNextPage() {
+    setStartDate((prevDate) => {
+      const nextDate = new Date(prevDate);
+      nextDate.setDate(prevDate.getDate() + DAYS_PER_PAGE);
+      return nextDate;
     });
+  }
 
-    const days = GetDateArray();
+  function handlePrevPage() {
+    setStartDate((prevDate) => {
+      const prevPageDate = new Date(prevDate);
+      prevPageDate.setDate(prevDate.getDate() - DAYS_PER_PAGE);
+      return prevPageDate;
+    });
+  }
 
-    const tasksForSelectedDay = selectedDay
-        ? tasksByDay[selectedDay] || []
-        : [];
+  function handleDayClick(dayData) {
+    setSelectedDate(dayData);
+    setIsModalOpen(true);
+  }
 
-    function handleDayClick(day) {
-        console.log("GoalTrackerPage отримав day:", day);
-        setSelectedDay(day);
-        setIsModalOpen(true);
-    }
+  function handleCloseModal() {
+    setIsModalOpen(false);
+  }
 
-    function handleCloseModal() {
-        setIsModalOpen(false);
-    }
+  function handleAddTask(newTaskText) {
+    if (!selectedDate) return;
 
-    function handleAddTask(newTaskText) {
-        if (!selectedDay) return;
+    const trimmedText = newTaskText.trim();
 
-        const trimmedText = newTaskText.trim();
+    if (trimmedText === "") return;
 
-        if (trimmedText === "") {
-            return;
-        }
+    const newTask = {
+      id: Date.now(),
+      text: trimmedText,
+    };
 
-        const newTask = {
-            id: Date.now(),
-            text: trimmedText,
-        };
+    setTasksByDate((prevTasks) => {
+      return {
+        ...prevTasks,
+        [selectedDate.dateKey]: [
+          ...(prevTasks[selectedDate.dateKey] || []),
+          newTask,
+        ],
+      };
+    });
+  }
 
-        setTasksByDay((prevTasks) => {
-            return {
-                ...prevTasks,
-                [selectedDay]: [
-                    ...(prevTasks[selectedDay] || []),
-                    newTask,
-                ],
-            };
-        });
-    }
+  function handleEditTask(taskId, newText) {
+    if (!selectedDate) return;
 
-    function handleEditTask(taskId, newText) {
-        if (!selectedDay) return;
+    const trimmedText = newText.trim();
 
-        const trimmedText = newText.trim();
+    if (trimmedText === "") return;
 
-        if (trimmedText === "") {
-            return;
-        }
+    setTasksByDate((prevTasks) => {
+      return {
+        ...prevTasks,
+        [selectedDate.dateKey]: (prevTasks[selectedDate.dateKey] || []).map(
+          (task) => {
+            if (task.id === taskId) {
+              return {
+                ...task,
+                text: trimmedText,
+              };
+            }
 
-        setTasksByDay((prevTasks) => {
-            return {
-                ...prevTasks,
-                [selectedDay]: (prevTasks[selectedDay] || []).map((task) => {
-                    if (task.id === taskId) {
-                        return {
-                            ...task,
-                            text: trimmedText,
-                        };
-                    }
+            return task;
+          }
+        ),
+      };
+    });
+  }
 
-                    return task;
-                }),
-            };
-        });
-    }
+  function handleDeleteTask(taskId) {
+    if (!selectedDate) return;
 
-    function handleDeleteTask(taskId) {
-        const isConfirmed = window.confirm(
-            "Are you sure you want to delete this task?"
-        );
-
-        if (!isConfirmed) {
-            return;
-        }
-
-        setTasksByDay((prevTasks) => {
-            return {
-                ...prevTasks,
-                [selectedDay]: (prevTasks[selectedDay] || []).filter((task) => {
-                    return task.id !== taskId;
-                }),
-            };
-        });
-    }
-
-    useEffect(() => {
-        if (isModalOpen) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
-
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [isModalOpen]);
-
-    return (
-        <main className="page home-page">
-            <MonthHeader />
-
-            <CalendarGrid
-                days={days}
-                onDayClick={handleDayClick}
-            />
-
-            {isModalOpen && (
-                <DayTasksModal
-                    selectedDay={selectedDay}
-                    tasks={tasksForSelectedDay}
-                    onClose={handleCloseModal}
-                    onAdd={handleAddTask}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                />
-            )}
-        </main>
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this task?"
     );
+
+    if (!isConfirmed) return;
+
+    setTasksByDate((prevTasks) => {
+      return {
+        ...prevTasks,
+        [selectedDate.dateKey]: (prevTasks[selectedDate.dateKey] || []).filter(
+          (task) => task.id !== taskId
+        ),
+      };
+    });
+  }
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isModalOpen]);
+
+  return (
+    <main className="page goal-tracker-page">
+      <MonthHeader
+        title={monthTitle}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+      />
+
+      <CalendarGrid days={visibleDays} onDayClick={handleDayClick} />
+
+      {isModalOpen && (
+        <DayTasksModal
+          selectedDay={selectedDate.day}
+          selectedMonth={selectedDate.monthName}
+          tasks={tasksForSelectedDay}
+          onClose={handleCloseModal}
+          onAdd={handleAddTask}
+          onEdit={handleEditTask}
+          onDelete={handleDeleteTask}
+        />
+      )}
+
+      <BottomNav />
+    </main>
+  );
 }
